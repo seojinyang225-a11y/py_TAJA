@@ -1,7 +1,7 @@
 import streamlit as st
+from streamlit_ace import st_ace
 import random
 import time
-from streamlit_ace import st_ace
 
 st.set_page_config(
     page_title="Python 타자 연습",
@@ -9,113 +9,159 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🐍 Python 코드 타자 연습")
+# -----------------------------
+# 문제 데이터
+# -----------------------------
 
-# 난이도별 문제
 problems = {
     "초급": [
         '''print("Hello World")''',
 
         '''name = input("이름 입력: ")
-print("안녕하세요", name)''',
+print(name)''',
 
         '''for i in range(5):
     print(i)'''
     ],
 
     "중급": [
-        '''numbers = [1, 2, 3, 4, 5]
-
-for n in numbers:
-    if n % 2 == 0:
-        print(n)''',
-
         '''def add(a, b):
     return a + b
 
-result = add(3, 5)
-print(result)''',
+print(add(3, 5))''',
 
-        '''students = {
-    "민수": 90,
-    "지우": 85
+        '''numbers = [1, 2, 3, 4]
+
+for n in numbers:
+    print(n * 2)''',
+
+        '''student = {
+    "name": "서진",
+    "age": 16
 }
 
-for name, score in students.items():
-    print(name, score)'''
+print(student["name"])'''
     ],
 
     "고급": [
-        '''class Person:
+        '''class Student:
     def __init__(self, name):
         self.name = name
 
-    def greet(self):
+    def hello(self):
         print(f"안녕하세요 {self.name}")
 
-p = Person("서진")
-p.greet()''',
+s = Student("양서진")
+s.hello()''',
 
         '''try:
-    file = open("test.txt", "r")
-    content = file.read()
+    x = int(input())
 
-except FileNotFoundError:
-    print("파일이 없습니다")
+except ValueError:
+    print("숫자를 입력하세요")
 
 finally:
     print("종료")''',
 
-        '''nums = [1, 2, 3, 4, 5]
+        '''nums = [1, 2, 3, 4]
 
-squared = list(map(lambda x: x**2, nums))
+result = list(map(lambda x: x**2, nums))
 
-print(squared)'''
+print(result)'''
     ]
 }
 
-# 세션 상태
+# -----------------------------
+# 학생 목록
+# -----------------------------
+
+students = [
+    "양서진",
+    "김민수",
+    "박지우",
+    "최하은",
+    "이도윤"
+]
+
+# -----------------------------
+# 세션 상태 초기화
+# -----------------------------
+
+if "problem_index" not in st.session_state:
+    st.session_state.problem_index = 0
+
+if "score" not in st.session_state:
+    st.session_state.score = 0
+
 if "start_time" not in st.session_state:
     st.session_state.start_time = None
 
-if "target_code" not in st.session_state:
-    st.session_state.target_code = ""
+if "current_problem" not in st.session_state:
+    st.session_state.current_problem = ""
 
-# 난이도 선택
-difficulty = st.selectbox(
-    "난이도 선택",
-    ["초급", "중급", "고급"]
-)
+# -----------------------------
+# 제목
+# -----------------------------
 
-# 새 문제 버튼
-if st.button("🎲 새 문제"):
-    st.session_state.target_code = random.choice(
+st.title("🐍 Python 코드 타자 연습")
+
+# -----------------------------
+# 상단 설정
+# -----------------------------
+
+col1, col2 = st.columns(2)
+
+with col1:
+    student_name = st.selectbox(
+        "학생 이름 선택",
+        students
+    )
+
+with col2:
+    difficulty = st.selectbox(
+        "난이도 선택",
+        ["초급", "중급", "고급"]
+    )
+
+# -----------------------------
+# 현재 문제 생성
+# -----------------------------
+
+if st.session_state.current_problem == "":
+    st.session_state.current_problem = random.choice(
         problems[difficulty]
     )
-    st.session_state.start_time = None
 
-# 최초 실행 시 문제 생성
-if st.session_state.target_code == "":
-    st.session_state.target_code = random.choice(
-        problems[difficulty]
-    )
+target = st.session_state.current_problem
 
-target = st.session_state.target_code
+# -----------------------------
+# 정보 표시
+# -----------------------------
 
-# 제시문 출력
-st.subheader("📄 제시된 코드를 따라 입력하세요")
+st.write(f"👤 학생: {student_name}")
+st.write(f"🏆 점수: {st.session_state.score}")
+st.write(f"📘 난이도: {difficulty}")
+
+st.divider()
+
+# -----------------------------
+# 문제 표시
+# -----------------------------
+
+st.subheader("📄 아래 코드를 그대로 입력하세요")
 
 st.code(target, language="python")
 
 st.divider()
 
-st.subheader("⌨️ 코드 입력")
-
+# -----------------------------
 # 코드 입력창
+# -----------------------------
+
 user_code = st_ace(
-    language='python',
-    theme='monokai',
-    keybinding='vscode',
+    language="python",
+    theme="monokai",
+    keybinding="vscode",
     font_size=16,
     tab_size=4,
     show_gutter=True,
@@ -125,28 +171,38 @@ user_code = st_ace(
     placeholder="여기에 Python 코드를 입력하세요...",
 )
 
+# -----------------------------
 # 시작 시간
+# -----------------------------
+
 if user_code and st.session_state.start_time is None:
     st.session_state.start_time = time.time()
 
+# -----------------------------
 # 정확도 계산
-def calculate_accuracy(a, b):
+# -----------------------------
+
+def calculate_accuracy(user, target):
+
     correct = 0
 
-    for i in range(min(len(a), len(b))):
-        if a[i] == b[i]:
+    for i in range(min(len(user), len(target))):
+        if user[i] == target[i]:
             correct += 1
 
-    return (correct / len(b)) * 100
+    return (correct / len(target)) * 100
 
-# 결과 표시
+# -----------------------------
+# 결과 처리
+# -----------------------------
+
 if user_code:
 
     accuracy = calculate_accuracy(user_code, target)
 
     st.write(f"🎯 정확도: {accuracy:.2f}%")
 
-    # 완성 체크
+    # 완전히 일치하면
     if user_code.strip() == target.strip():
 
         elapsed = time.time() - st.session_state.start_time
@@ -155,10 +211,25 @@ if user_code:
 
         wpm = (chars / 5) / (elapsed / 60)
 
-        st.success("✅ 코드 일치! 완료!")
+        st.success("✅ 정답!")
 
         st.write(f"⏱ 시간: {elapsed:.2f}초")
-        st.write(f"⚡ 타자 속도: {wpm:.2f} WPM")
+        st.write(f"⚡ 속도: {wpm:.2f} WPM")
 
-        if wpm > 80:
-            st.balloons()
+        # 점수 증가
+        st.session_state.score += 10
+
+        # 다음 문제 자동 생성
+        next_problem = random.choice(
+            problems[difficulty]
+        )
+
+        st.session_state.current_problem = next_problem
+
+        # 타이머 초기화
+        st.session_state.start_time = None
+
+        # 자동 새로고침
+        time.sleep(1)
+
+        st.rerun()
