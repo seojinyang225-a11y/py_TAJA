@@ -1,69 +1,164 @@
 import streamlit as st
-import time
 import random
+import time
+from streamlit_ace import st_ace
 
-# 연습 문장 리스트
-sentences = [
-    "안녕하세요 타자 연습입니다",
-    "파이썬은 재미있는 프로그래밍 언어입니다",
-    "streamlit으로 웹앱 만들기",
-    "github와 연동하여 배포하기",
-    "오늘도 즐겁게 코딩합시다",
-    "Typing practice makes you faster",
-    "Python is very powerful",
-    "Streamlit is simple and useful"
-]
+st.set_page_config(
+    page_title="Python 타자 연습",
+    page_icon="⌨️",
+    layout="wide"
+)
 
-st.set_page_config(page_title="타자 연습", page_icon="⌨️")
+st.title("🐍 Python 코드 타자 연습")
 
-st.title("⌨️ 타자 연습 웹앱")
+# 난이도별 문제
+problems = {
+    "초급": [
+        '''print("Hello World")''',
 
-# 세션 상태 초기화
-if "sentence" not in st.session_state:
-    st.session_state.sentence = random.choice(sentences)
+        '''name = input("이름 입력: ")
+print("안녕하세요", name)''',
 
+        '''for i in range(5):
+    print(i)'''
+    ],
+
+    "중급": [
+        '''numbers = [1, 2, 3, 4, 5]
+
+for n in numbers:
+    if n % 2 == 0:
+        print(n)''',
+
+        '''def add(a, b):
+    return a + b
+
+result = add(3, 5)
+print(result)''',
+
+        '''students = {
+    "민수": 90,
+    "지우": 85
+}
+
+for name, score in students.items():
+    print(name, score)'''
+    ],
+
+    "고급": [
+        '''class Person:
+    def __init__(self, name):
+        self.name = name
+
+    def greet(self):
+        print(f"안녕하세요 {self.name}")
+
+p = Person("서진")
+p.greet()''',
+
+        '''try:
+    file = open("test.txt", "r")
+    content = file.read()
+
+except FileNotFoundError:
+    print("파일이 없습니다")
+
+finally:
+    print("종료")''',
+
+        '''nums = [1, 2, 3, 4, 5]
+
+squared = list(map(lambda x: x**2, nums))
+
+print(squared)'''
+    ]
+}
+
+# 세션 상태
 if "start_time" not in st.session_state:
     st.session_state.start_time = None
 
-# 랜덤 문장 출력
-st.subheader("따라 입력하세요")
-st.info(st.session_state.sentence)
+if "target_code" not in st.session_state:
+    st.session_state.target_code = ""
 
-# 입력창
-user_input = st.text_input("여기에 입력:")
+# 난이도 선택
+difficulty = st.selectbox(
+    "난이도 선택",
+    ["초급", "중급", "고급"]
+)
 
-# 입력 시작 시간 기록
-if user_input and st.session_state.start_time is None:
+# 새 문제 버튼
+if st.button("🎲 새 문제"):
+    st.session_state.target_code = random.choice(
+        problems[difficulty]
+    )
+    st.session_state.start_time = None
+
+# 최초 실행 시 문제 생성
+if st.session_state.target_code == "":
+    st.session_state.target_code = random.choice(
+        problems[difficulty]
+    )
+
+target = st.session_state.target_code
+
+# 제시문 출력
+st.subheader("📄 제시된 코드를 따라 입력하세요")
+
+st.code(target, language="python")
+
+st.divider()
+
+st.subheader("⌨️ 코드 입력")
+
+# 코드 입력창
+user_code = st_ace(
+    language='python',
+    theme='monokai',
+    keybinding='vscode',
+    font_size=16,
+    tab_size=4,
+    show_gutter=True,
+    wrap=True,
+    auto_update=True,
+    height=300,
+    placeholder="여기에 Python 코드를 입력하세요...",
+)
+
+# 시작 시간
+if user_code and st.session_state.start_time is None:
     st.session_state.start_time = time.time()
 
-# 결과 계산
-if user_input == st.session_state.sentence:
-    end_time = time.time()
-    elapsed_time = end_time - st.session_state.start_time
-
-    # 글자 수 기준 속도 계산
-    chars = len(st.session_state.sentence)
-    wpm = (chars / 5) / (elapsed_time / 60)
-
-    st.success("완벽합니다! 🎉")
-
-    st.write(f"⏱ 시간: {elapsed_time:.2f}초")
-    st.write(f"⚡ 타자 속도: {wpm:.2f} WPM")
-
 # 정확도 계산
-if user_input:
-    correct_chars = 0
+def calculate_accuracy(a, b):
+    correct = 0
 
-    for i in range(min(len(user_input), len(st.session_state.sentence))):
-        if user_input[i] == st.session_state.sentence[i]:
-            correct_chars += 1
+    for i in range(min(len(a), len(b))):
+        if a[i] == b[i]:
+            correct += 1
 
-    accuracy = (correct_chars / len(st.session_state.sentence)) * 100
+    return (correct / len(b)) * 100
+
+# 결과 표시
+if user_code:
+
+    accuracy = calculate_accuracy(user_code, target)
 
     st.write(f"🎯 정확도: {accuracy:.2f}%")
 
-# 새 문장 버튼
-if st.button("새 문장"):
-    st.session_state.sentence = random.choice(sentences)
-    st.session_state.start_time = None
-    st.rerun()
+    # 완성 체크
+    if user_code.strip() == target.strip():
+
+        elapsed = time.time() - st.session_state.start_time
+
+        chars = len(target)
+
+        wpm = (chars / 5) / (elapsed / 60)
+
+        st.success("✅ 코드 일치! 완료!")
+
+        st.write(f"⏱ 시간: {elapsed:.2f}초")
+        st.write(f"⚡ 타자 속도: {wpm:.2f} WPM")
+
+        if wpm > 80:
+            st.balloons()
